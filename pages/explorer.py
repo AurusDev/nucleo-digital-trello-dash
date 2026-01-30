@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import base64
 from datetime import datetime, timezone
 from src.services.trello_service import TrelloService
 from src.ui.styles import apply_custom_styles
@@ -24,14 +25,22 @@ trello_service = TrelloService(st.session_state["api_key"], st.session_state["to
 BOARD_ID = os.getenv("TRELLO_BOARD_ID")
 
 # --- UI HEADER ---
-st.markdown("""
-    <div style='display: flex; align-items: center; gap: 15px; margin-bottom: 20px;'>
-        <h1 style='margin: 0;'>🔍 Card Explorer</h1>
-        <span style='background: rgba(212,175,55,0.1); color: #d4af37; padding: 5px 15px; border-radius: 20px; font-weight: 600; font-size: 0.9rem;'>
-            Total de Cartões no Quadro
-        </span>
+try:
+    with open("assets/search.png", "rb") as f:
+        search_encoded = base64.b64encode(f.read()).decode()
+    header_html = f"""
+    <div class="title-container">
+        <img src="data:image/png;base64,{search_encoded}" class="title-icon-img">
+        <h1 style="margin: 0;">Card Explorer</h1>
     </div>
-""", unsafe_allow_html=True)
+    """
+    st.markdown(header_html, unsafe_allow_html=True)
+except:
+    st.markdown("""
+        <div style='display: flex; align-items: center; gap: 15px; margin-bottom: 20px;'>
+            <h1 style='margin: 0;'>🔍 Card Explorer</h1>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- SIDEBAR (FILTROS) ---
 with st.sidebar:
