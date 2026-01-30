@@ -77,18 +77,6 @@ with st.sidebar:
             margin-right: 10px;
             vertical-align: middle;
         }}
-        /* Painel Principal */
-        section[data-testid="stSidebar"] button[kind="secondary"]:nth-of-type(2) div[data-testid="stMarkdownContainer"] p::before {{
-            content: "";
-            background-image: url('data:image/png;base64,{icon_back}');
-            background-size: contain;
-            background-repeat: no-repeat;
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            margin-right: 10px;
-            vertical-align: middle;
-        }}
     </style>
     """, unsafe_allow_html=True)
 

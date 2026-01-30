@@ -79,7 +79,7 @@ with st.sidebar:
             gap: 10px;
         }}
         
-        section[data-testid="stSidebar"] div[data-testid="stButton"] button::before {{
+        section[data-testid="stSidebar"] div[data-testid="stButton"]:nth-of-type(1) button::before {{
             content: "";
             width: 18px;
             height: 18px;
