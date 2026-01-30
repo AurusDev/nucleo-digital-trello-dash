@@ -13,3 +13,6 @@ fileWatcherType = "auto"
 [runner]
 magicEnabled = true
 fastReruns = true
+
+[client]
+showSidebarNavigation = false

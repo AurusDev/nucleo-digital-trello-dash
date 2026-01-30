@@ -99,6 +99,10 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
+    st.divider()
+    if st.button("🔍 Abrir Card Explorer", use_container_width=True, help="Exploração detalhada de cartões com busca e filtros"):
+        st.switch_page("pages/explorer.py")
+
 # --- DATA PROCESSING ---
 df_cards = pd.DataFrame(board_data['cards'])
 df_cards['list_name'] = df_cards['idList'].map(all_lists)
