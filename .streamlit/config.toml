@@ -6,9 +6,7 @@ textColor = "#f0f2f6"
 font = "sans serif"
 
 [server]
-port = 8505
 headless = true
-enableCORS = false
 runOnSave = true
 fileWatcherType = "auto"
 
