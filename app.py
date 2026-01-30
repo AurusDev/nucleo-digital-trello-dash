@@ -100,7 +100,7 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    if st.button("🔍 Abrir Card Explorer", use_container_width=True, help="Exploração detalhada de cartões com busca e filtros"):
+    if st.button("Abrir Card Explorer", use_container_width=True, help="Exploração detalhada de cartões com busca e filtros"):
         st.switch_page("pages/explorer.py")
 
 # --- DATA PROCESSING ---
