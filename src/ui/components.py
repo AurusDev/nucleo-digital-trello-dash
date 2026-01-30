@@ -1,11 +1,11 @@
-import streamlit as st
+import streamlit as st 
 import pandas as pd
 import plotly.express as px
 import base64
 import os
 import urllib.parse
 import textwrap
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 def render_kpi_card_new(label, value, footer="Dados atualizados", icon="📊"):
     """
@@ -222,100 +222,162 @@ def render_insight_card(insight):
                 else:
                     st.write(item)
 
+def get_relative_time(dt):
+    """Retorna uma string humanizada do tempo decorrido."""
+    if not dt: return "--"
+    now = datetime.now(timezone.utc)
+    diff = now - dt
+    
+    if diff.days > 30: return dt.strftime('%d/%m/%y')
+    if diff.days > 0: return f"há {diff.days}d"
+    if diff.seconds > 3600: return f"há {diff.seconds // 3600}h"
+    return "agora"
+
 def render_explorer_table(df_cards, on_card_click):
     """
     Renderiza uma tabela premium de cartões com suporte a busca e filtros aplicados.
     """
-    
     if df_cards.empty:
         st.info("Nenhum cartão encontrado com os filtros aplicados.")
         return
 
-    # Estilo CSS para a tabela explorer
+    # Estilo CSS para a tabela explorer (Sticky Header + Hover + Zebra)
     st.markdown("""
     <style>
-    .explorer-row {
-        background: rgba(255,255,255,0.03);
-        border-radius: 6px;
+    .explorer-container {
+        border: 1px solid rgba(212, 175, 55, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #14161d;
+    }
+    .explorer-header-row {
+        background: rgba(212, 175, 55, 0.05);
+        color: #d4af37;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
         padding: 12px;
-        margin-bottom: 8px;
-        border: 1px solid rgba(255,255,255,0.05);
         display: grid;
-        grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
+        grid-template-columns: 2.5fr 1fr 1fr 1.2fr 0.8fr 0.5fr;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    .explorer-row {
+        padding: 10px 12px;
+        display: grid;
+        grid-template-columns: 2.5fr 1fr 1fr 1.2fr 0.8fr 0.5fr;
         align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
         transition: all 0.2s;
         cursor: pointer;
     }
     .explorer-row:hover {
         background: rgba(212, 175, 55, 0.08);
-        border-color: #d4af37;
-        transform: translateX(5px);
+        box-shadow: inset 2px 0 0 #d4af37;
     }
-    .col-header {
-        color: #d4af37;
+    .explorer-row:nth-child(even) { background: rgba(255,255,255,0.01); }
+    
+    .label-badge {
+        font-size: 0.65rem;
+        padding: 1px 6px;
+        border-radius: 10px;
+        margin-right: 4px;
         font-weight: 600;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        padding: 0 12px 10px 12px;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-        margin-bottom: 15px;
-    }
-    .label-dot {
-        width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px;
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.1);
     }
     .list-badge { 
         background: rgba(255,255,255,0.08); 
-        padding: 3px 8px; 
+        padding: 2px 8px; 
         border-radius: 4px; 
-        font-size: 0.75rem;
-        border: 1px solid rgba(255,255,255,0.1);
+        font-size: 0.7rem;
+        color: #ccc;
+    }
+    .age-indicator {
+        font-size: 0.7rem;
+        color: #888;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-vencido { color: #ff5252; font-weight: 600; }
+    .status-vencendo { color: #ffa726; font-weight: 600; }
+    .status-ok { color: #66bb6a; }
+
+    /* Reduzir botões de ação na tabela */
+    [data-testid="column"] button {
+        height: 30px !important;
+        min-height: 30px !important;
+        padding: 0 !important;
+        line-height: 30px !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
     # Headers
-    h_col1, h_col2, h_col3, h_col4, h_col5 = st.columns([2.5, 1, 1, 1, 0.6])
-    with h_col1: st.markdown('<div class="col-header">Card / Labels</div>', unsafe_allow_html=True)
-    with h_col2: st.markdown('<div class="col-header">Lista</div>', unsafe_allow_html=True)
-    with h_col3: st.markdown('<div class="col-header">Prazo</div>', unsafe_allow_html=True)
-    with h_col4: st.markdown('<div class="col-header">Última Ativ.</div>', unsafe_allow_html=True)
-    with h_col5: st.markdown('<div class="col-header">Ações</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="explorer-header-row">
+        <div>Card / Labels</div>
+        <div>Lista</div>
+        <div>Prazo</div>
+        <div>Última Ativ.</div>
+        <div>Idade</div>
+        <div style="text-align:center;">Ações</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     now = datetime.now(timezone.utc)
 
     for _, card in df_cards.iterrows():
-        # Lógica de cores para prazo
-        due_status = "⚪"
+        # 1. Prazos
+        due_html = '<span class="status-ok">--</span>'
         if card['due']:
             due_dt = pd.to_datetime(card['due'], utc=True)
-            if card['dueComplete']: due_status = "✅"
-            elif due_dt < now: due_status = "🔴"
-            else: due_status = "🟡"
+            due_str = due_dt.strftime('%d/%m')
+            if card['dueComplete']: 
+                due_html = f'<span class="status-ok">✅ {due_str}</span>'
+            elif due_dt < now: 
+                due_html = f'<span class="status-vencido">🚨 {due_str}</span>'
+            elif (due_dt - now).days < 2: 
+                due_html = f'<span class="status-vencendo">⏳ {due_str}</span>'
+            else:
+                due_html = f'<span>📅 {due_str}</span>'
         
-        # Formatação de labels
-        labels_html = '<div style="margin-top:4px;">'
-        for lbl in card.get('labels', []):
+        # 2. Labels
+        labels_html = '<div>'
+        for lbl in card.get('labels', [])[:3]:
             color = lbl.get('color', 'gray')
-            # Mapeamento de cores do Trello para hex se necessário, mas aqui usaremos a cor nominal
-            labels_html += f'<span class="label-dot" style="background-color: {color};" title="{lbl.get("name","")}"></span>'
+            labels_html += f'<span class="label-badge" style="background: {color}44; color: white; border-color: {color}">{lbl.get("name","")}</span>'
+        if len(card.get('labels', [])) > 3:
+            labels_html += f'<span class="label-badge">+{len(card["labels"])-3}</span>'
         labels_html += '</div>'
 
+        # 3. Idade (Calculada ou Placeholder)
+        # O Trello API não envia common creation date no card objeto base, mas podemos usar o ID como aproximação
+        # ou apenas omitir se não tivermos a data de criação carregada. Usaremos dateLastActivity como 'Idade' visual aqui simplificada.
+        age_days = (now - pd.to_datetime(card['dateLastActivity'], utc=True)).days
+        age_icon = "🟢" if age_days < 5 else "🟡" if age_days < 15 else "🔴"
+
         with st.container():
-            c1, c2, c3, c4, c5 = st.columns([2.5, 1, 1, 1, 0.6])
+            # Usando grid layout via markdown para precisão visual, mas os botões precisam ser Streamlit
+            col1, col2, col3, col4, col5, col6 = st.columns([2.5, 1, 1, 1.2, 0.8, 0.5])
             
-            with c1:
+            with col1:
                 st.markdown(f"**{card['name']}**{labels_html}", unsafe_allow_html=True)
-            with c2:
+            with col2:
                 st.markdown(f'<span class="list-badge">{card["list_name"]}</span>', unsafe_allow_html=True)
-            with c3:
-                due_val = pd.to_datetime(card['due']).strftime('%d/%m') if card['due'] else "--"
-                st.write(f"{due_status} {due_val}")
-            with c4:
-                last_act = pd.to_datetime(card['dateLastActivity']).strftime('%d/%m')
-                st.write(last_act)
-            with c5:
-                if st.button("👁️", key=f"exp_btn_{card['id']}", help="Ver detalhes"):
+            with col3:
+                st.markdown(due_html, unsafe_allow_html=True)
+            with col4:
+                last_dt = pd.to_datetime(card['dateLastActivity'], utc=True)
+                st.markdown(f"**{last_dt.strftime('%d/%m')}** <br><small style='color:#777'>{get_relative_time(last_dt)}</small>", unsafe_allow_html=True)
+            with col5:
+                st.markdown(f"<div class='age-indicator'>{age_icon} {age_days}d</div>", unsafe_allow_html=True)
+            with col6:
+                if st.button("👁️", key=f"exp_btn_{card['id']}", help="Ver detalhes completos"):
                     on_card_click(card['id'])
 
 @st.dialog("Detalhes do Card", width="large")
@@ -364,6 +426,13 @@ def render_card_detail_dialog(card_data, details):
                         icon = "✅" if item['state'] == 'complete' else "⬜"
                         color = "#66BB6A" if item['state'] == 'complete' else "#bbb"
                         st.markdown(f"<span style='color:{color}'>{icon} {item['name']}</span>", unsafe_allow_html=True)
+
+        # Anexos (Novo)
+        if details.get('attachments'):
+            st.markdown("### 📎 Anexos")
+            for att in details['attachments'][:5]:
+                dt_att = pd.to_datetime(att['date']).strftime('%d/%m')
+                st.markdown(f"[{att['name']}]({att['url']}) <small>({dt_att})</small>", unsafe_allow_html=True)
 
     with col_m2:
         # Prazos e Metadados

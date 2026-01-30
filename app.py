@@ -6,13 +6,13 @@ import os
 from src.services.trello_service import TrelloService
 from src.ui.styles import apply_custom_styles
 import base64
-# Force Reload v2
+# Force Reload v2.2 (2026-01-30 15:37)
 from src.ui.components import render_kpi_card_new, render_plotly_bar, render_plotly_pie, render_insight_card
 from src.insights import generate_insights
 
 # --- CONFIGURAÇÃO INICIAL ---
 # Force Reload Fix
-st.set_page_config(page_title="Núcleo Digital | Projetos & Cases", page_icon="assets/favicon.png", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Núcleo Digital | Projetos & Cases", page_icon="assets/pie-chart.png", layout="wide", initial_sidebar_state="expanded")
 apply_custom_styles()
 
 # --- SERVICES ---
