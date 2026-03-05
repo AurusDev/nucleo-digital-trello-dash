@@ -64,9 +64,13 @@ def generate_insights(df_cards, df_actions, list_names_map):
     # ---------------------------------------------------------
     # 3. GARGALO (Warning): Lista com Acúmulo Anormal
     # ---------------------------------------------------------
-    # Conta cards por lista (apenas ativas)
-    if not active_lists_df.empty:
-        list_counts = active_lists_df['list_name'].value_counts()
+    # Conta cards por lista (apenas ativas e que não sejam de conclusão)
+    bottleneck_lists_df = active_lists_df[
+        ~active_lists_df['list_name'].str.contains('Done|Concluído|Concluded', case=False, na=False)
+    ]
+    
+    if not bottleneck_lists_df.empty:
+        list_counts = bottleneck_lists_df['list_name'].value_counts()
         if not list_counts.empty:
             max_list = list_counts.idxmax()
             max_count = list_counts.max()
